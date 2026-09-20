@@ -60,6 +60,19 @@ app.put("/jobs/:id", authMiddleware, async (req, res) => {
     return res.json(job);
   }
 
+  const existingJob = await Job.findById(req.params.id);
+
+  if (!existingJob) {
+    return res.status(404).json({ message: "Job not found" });
+  }
+
+  const isOwner = existingJob.claimedBy === req.user.userId;
+  const isManagerOrOwner = req.user.role === "manager" || req.user.role === "owner";
+
+  if (!isOwner && !isManagerOrOwner) {
+    return res.status(403).json({ message: "You are not authorized to update this job" });
+  }
+
   const job = await Job.findByIdAndUpdate(
     req.params.id,
     { status: req.body.status },
