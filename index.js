@@ -100,42 +100,53 @@ app.delete("/jobs/:id", authMiddleware, roleMiddleware(["manager", "owner"]), as
 });
 
 app.post("/signup", async (req, res) => {
-  const hashedPassword = await bcrypt.hash(req.body.password, 10);
+  try {
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
-  const allowedSignupRoles = ["customer", "staff"];
-  const safeRole = allowedSignupRoles.includes(req.body.role) ? req.body.role : "customer";
+    const allowedSignupRoles = ["customer", "staff"];
+    const safeRole = allowedSignupRoles.includes(req.body.role) ? req.body.role : "customer";
 
-  const newUser = new User({
-    name: req.body.name,
-    email: req.body.email,
-    password: hashedPassword,
-    role: safeRole
-  });
+    const newUser = new User({
+      name: req.body.name,
+      email: req.body.email,
+      password: hashedPassword,
+      role: safeRole
+    });
 
-  await newUser.save();
-  res.json({ message: "User created successfully" });
+    await newUser.save();
+    res.json({ message: "User created successfully" });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "An account with this email already exists" });
+    }
+    res.status(500).json({ message: "Something went wrong creating your account" });
+  }
 });
 
 app.post("/login", async (req, res) => {
-  const user = await User.findOne({ email: req.body.email });
+  try {
+    const user = await User.findOne({ email: req.body.email });
 
-  if (!user) {
-    return res.status(400).json({ message: "User not found" });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    const isMatch = await bcrypt.compare(req.body.password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ token, name: user.name, role: user.role, userId: user._id });
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong logging you in" });
   }
-
-  const isMatch = await bcrypt.compare(req.body.password, user.password);
-
-  if (!isMatch) {
-    return res.status(400).json({ message: "Incorrect password" });
-  }
-
-  const token = jwt.sign(
-    { userId: user._id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "7d" }
-  );
-
- res.json({ token, name: user.name, role: user.role, userId: user._id });
 });
 
 app.listen(3000, () => {
