@@ -89,11 +89,14 @@ app.delete("/jobs/:id", authMiddleware, roleMiddleware(["manager", "owner"]), as
 app.post("/signup", async (req, res) => {
   const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
+  const allowedSignupRoles = ["customer", "staff"];
+  const safeRole = allowedSignupRoles.includes(req.body.role) ? req.body.role : "customer";
+
   const newUser = new User({
     name: req.body.name,
     email: req.body.email,
     password: hashedPassword,
-    role: req.body.role || "customer"
+    role: safeRole
   });
 
   await newUser.save();
