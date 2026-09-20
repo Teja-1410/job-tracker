@@ -2,6 +2,15 @@
 
 A full-stack job dispatch platform for local service businesses (AC repair, salon, catering, cleaning, electrician) to coordinate work in real time instead of relying on chaotic WhatsApp groups.
 
+## Live Demo
+
+- **Live App**: https://job-tracker-frontend-lilac-five.vercel.app
+- **Backend API**: https://job-tracker-api-v66b.onrender.com
+- **Frontend Repo**: https://github.com/Teja-1410/job-tracker-frontend
+- **Backend Repo**: https://github.com/Teja-1410/job-tracker
+
+*Note: the backend is hosted on Render's free tier, which sleeps after inactivity — the first request may take 20-30 seconds to respond.*
+
 ## Features
 
 - **Authentication**: Secure signup/login with bcrypt password hashing and JWT tokens
