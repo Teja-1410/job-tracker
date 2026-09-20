@@ -32,9 +32,13 @@ app.get("/jobs/:id", async (req, res) => {
 });
 
 app.post("/jobs", authMiddleware, roleMiddleware(["manager", "owner"]), async (req, res) => {
-  const newJob = new Job({ title: req.body.title });
-  await newJob.save();
-  res.json(newJob);
+  try {
+    const newJob = new Job({ title: req.body.title });
+    await newJob.save();
+    res.json(newJob);
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong creating the job" });
+  }
 });
 
 app.put("/jobs/:id", authMiddleware, async (req, res) => {
@@ -82,21 +86,39 @@ app.put("/jobs/:id", authMiddleware, async (req, res) => {
 });
 
 app.put("/jobs/:id/assign", authMiddleware, roleMiddleware(["manager", "owner"]), async (req, res) => {
-  const job = await Job.findByIdAndUpdate(
-    req.params.id,
-    {
-      assignedTo: req.body.staffName,
-      claimedBy: req.body.staffId,
-      status: "claimed"
-    },
-    { new: true }
-  );
-  res.json(job);
+  try {
+    const job = await Job.findByIdAndUpdate(
+      req.params.id,
+      {
+        assignedTo: req.body.staffName,
+        claimedBy: req.body.staffId,
+        status: "claimed"
+      },
+      { new: true }
+    );
+
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    res.json(job);
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong assigning the job" });
+  }
 });
 
 app.delete("/jobs/:id", authMiddleware, roleMiddleware(["manager", "owner"]), async (req, res) => {
-  await Job.findByIdAndDelete(req.params.id);
-  res.json({ message: "Job deleted" });
+  try {
+    const job = await Job.findByIdAndDelete(req.params.id);
+
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    res.json({ message: "Job deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong deleting the job" });
+  }
 });
 
 app.post("/signup", async (req, res) => {
