@@ -32,3 +32,11 @@ A full-stack job dispatch platform for local service businesses (AC repair, salo
 ## Running Locally
 
 ### Backend
+
+## Known Limitations
+
+- The 3-active-job cap has a theoretical race condition under simultaneous requests from the same user — acceptable for this project's scale, would use a database transaction in production.
+- Status transitions aren't currently restricted to a specific order (e.g., claimed → done directly).
+- Job data loads once on page load rather than updating live — a planned next step is WebSocket-based real-time sync.
+- The API base URL is currently hardcoded in the frontend rather than pulled from an environment variable.
+- CORS is currently open to all origins, appropriate for this demo but would be restricted in production.
