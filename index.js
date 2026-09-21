@@ -22,13 +22,24 @@ app.get("/", (req, res) => {
 });
 
 app.get("/jobs", async (req, res) => {
-  const jobs = await Job.find();
-  res.json(jobs);
+  try {
+    const jobs = await Job.find();
+    res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong fetching jobs" });
+  }
 });
 
 app.get("/jobs/:id", async (req, res) => {
-  const job = await Job.findById(req.params.id);
-  res.json(job);
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+    res.json(job);
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong fetching this job" });
+  }
 });
 
 app.post("/jobs", authMiddleware, roleMiddleware(["manager", "owner"]), async (req, res) => {
@@ -42,47 +53,55 @@ app.post("/jobs", authMiddleware, roleMiddleware(["manager", "owner"]), async (r
 });
 
 app.put("/jobs/:id", authMiddleware, async (req, res) => {
-  if (req.body.status === "claimed") {
-    const activeJobsCount = await Job.countDocuments({
-      claimedBy: req.user.userId,
-      status: { $in: ["claimed", "in-progress"] }
-    });
+  try {
+    if (req.body.status === "claimed") {
+      if (req.user.role !== "staff") {
+        return res.status(403).json({ message: "Only staff can claim jobs" });
+      }
 
-    const MAX_ACTIVE_JOBS = 3;
-
-    if (activeJobsCount >= MAX_ACTIVE_JOBS) {
-      return res.status(400).json({
-        message: "You already have the maximum number of active jobs (3). Complete one before claiming another."
+      const activeJobsCount = await Job.countDocuments({
+        claimedBy: req.user.userId,
+        status: { $in: ["claimed", "in-progress"] }
       });
+
+      const MAX_ACTIVE_JOBS = 3;
+
+      if (activeJobsCount >= MAX_ACTIVE_JOBS) {
+        return res.status(400).json({
+          message: "You already have the maximum number of active jobs (3). Complete one before claiming another."
+        });
+      }
+
+      const job = await Job.findByIdAndUpdate(
+        req.params.id,
+        { status: "claimed", claimedBy: req.user.userId },
+        { new: true }
+      );
+      return res.json(job);
+    }
+
+    const existingJob = await Job.findById(req.params.id);
+
+    if (!existingJob) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    const isOwner = existingJob.claimedBy === req.user.userId;
+    const isManagerOrOwner = req.user.role === "manager" || req.user.role === "owner";
+
+    if (!isOwner && !isManagerOrOwner) {
+      return res.status(403).json({ message: "You are not authorized to update this job" });
     }
 
     const job = await Job.findByIdAndUpdate(
       req.params.id,
-      { status: "claimed", claimedBy: req.user.userId },
+      { status: req.body.status },
       { new: true }
     );
-    return res.json(job);
+    res.json(job);
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong updating the job" });
   }
-
-  const existingJob = await Job.findById(req.params.id);
-
-  if (!existingJob) {
-    return res.status(404).json({ message: "Job not found" });
-  }
-
-  const isOwner = existingJob.claimedBy === req.user.userId;
-  const isManagerOrOwner = req.user.role === "manager" || req.user.role === "owner";
-
-  if (!isOwner && !isManagerOrOwner) {
-    return res.status(403).json({ message: "You are not authorized to update this job" });
-  }
-
-  const job = await Job.findByIdAndUpdate(
-    req.params.id,
-    { status: req.body.status },
-    { new: true }
-  );
-  res.json(job);
 });
 
 app.put("/jobs/:id/assign", authMiddleware, roleMiddleware(["manager", "owner"]), async (req, res) => {
@@ -159,6 +178,7 @@ app.post("/signup", async (req, res) => {
     res.status(500).json({ message: "Something went wrong creating your account" });
   }
 });
+
 app.post("/login", async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
@@ -185,11 +205,15 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.get("/users/staff", authMiddleware, roleMiddleware(["manager", "owner"]), async (req, res) => {
+  try {
+    const staffList = await User.find({ role: "staff" }, "name email");
+    res.json(staffList);
+  } catch (err) {
+    res.status(500).json({ message: "Something went wrong fetching staff" });
+  }
 });
 
-app.get("/users/staff", authMiddleware, roleMiddleware(["manager", "owner"]), async (req, res) => {
-  const staffList = await User.find({ role: "staff" }, "name email");
-  res.json(staffList);
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
