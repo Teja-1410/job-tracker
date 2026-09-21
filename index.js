@@ -72,11 +72,16 @@ app.put("/jobs/:id", authMiddleware, async (req, res) => {
         });
       }
 
-      const job = await Job.findByIdAndUpdate(
-        req.params.id,
+      const job = await Job.findOneAndUpdate(
+        { _id: req.params.id, status: "pending" },
         { status: "claimed", claimedBy: req.user.userId },
-        { new: true }
+        { new: true, runValidators: true }
       );
+
+      if (!job) {
+        return res.status(400).json({ message: "This job is no longer available to claim" });
+      }
+
       return res.json(job);
     }
 
@@ -96,7 +101,7 @@ app.put("/jobs/:id", authMiddleware, async (req, res) => {
     const job = await Job.findByIdAndUpdate(
       req.params.id,
       { status: req.body.status },
-      { new: true }
+      { new: true, runValidators: true }
     );
     res.json(job);
   } catch (err) {
@@ -113,7 +118,7 @@ app.put("/jobs/:id/assign", authMiddleware, roleMiddleware(["manager", "owner"])
         claimedBy: req.body.staffId,
         status: "claimed"
       },
-      { new: true }
+      { new: true, runValidators: true }
     );
 
     if (!job) {
