@@ -123,6 +123,21 @@ app.delete("/jobs/:id", authMiddleware, roleMiddleware(["manager", "owner"]), as
 
 app.post("/signup", async (req, res) => {
   try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email, and password are all required" });
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+      return res.status(400).json({ message: "Please enter a valid email address" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
     const allowedSignupRoles = ["customer", "staff"];
@@ -144,7 +159,6 @@ app.post("/signup", async (req, res) => {
     res.status(500).json({ message: "Something went wrong creating your account" });
   }
 });
-
 app.post("/login", async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
